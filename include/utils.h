@@ -2,10 +2,8 @@
 #define UTILS_H
 
 #include <string>
-#include <filesystem>
 
-
-inline void trim(std::string& str) {
+static inline void trim(std::string& str) {
     int beginIndex = 0;
     int endIndex = str.size() - 1;
     for (int i = beginIndex; i <= endIndex; i++) {
@@ -24,8 +22,9 @@ inline void trim(std::string& str) {
 }
 
 template <typename T>
-inline void print(T object) {
+static inline void print(T object) {
     std::cout << object << std::endl;
+    
 }
 
 #endif
