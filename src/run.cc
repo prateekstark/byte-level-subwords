@@ -55,9 +55,10 @@ int main(int argc, char **argv)
         std::cout << "\r[Files completed: " << filesCompleted << "], Time(ms):"
                   << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << ", Vocabulary Size: " << tokenizer.getVocabularySize() << " |";
         std::cout.flush();
-        if (filesCompleted % 100 == 0) {
-        break;
-        // tokenizer.pruneWordFrequency();
+        if (filesCompleted % 100 == 0)
+        {
+            break;
+            // tokenizer.pruneWordFrequency();
         }
         // break;
     }
@@ -76,13 +77,15 @@ int main(int argc, char **argv)
                   << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.0 << " |";
         std::cout.flush();
     }
-    tokenizer.pruneRedundantTokens();
+    // tokenizer.pruneRedundantTokens();
     tokenizer.printVocabulary(false);
-    // std::vector<unsigned short> tokenizedText = tokenizer.tokenize("I am Iron Man!, hehehehe");
-    // std::cout << tokenizer.detokenize(tokenizedText) << std::endl;
 
-    // std::string s = "abcd";
-    // print(tokenizer.detokenize(tokenizer.tokenize(s)));
+    // Example test
+    std::vector<unsigned short> tokenizedText = tokenizer.tokenize("I am Iron Man!, hehehehe");
+    std::cout << tokenizer.detokenize(tokenizedText) << std::endl;
+
+    std::string s = "abcd";
+    assert(tokenizer.detokenize(tokenizer.tokenize(s)) == s);
 
     return 0;
 }

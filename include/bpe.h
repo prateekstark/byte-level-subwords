@@ -42,7 +42,8 @@ namespace dokusha
         unsigned short vocabularySize;
         std::unordered_map<T, unsigned short> vocabulary;
         std::unordered_map<unsigned short, T> inverseVocabulary;
-        const unsigned short frequencyPruneThreshold = 3;
+        const unsigned short frequencyPruneThreshold = 2;
+        std::unordered_set<T> baseVocabulary;
 
     public:
         BPETokenizer();

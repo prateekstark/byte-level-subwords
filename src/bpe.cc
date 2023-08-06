@@ -7,6 +7,16 @@ namespace dokusha
     {
         this->vocabularySize = 1;
         this->inverseVocabulary[0] = "_";
+
+        for (uint8_t i = 0; ; i++)
+        {
+            this->addToVocabulary(std::string(1, i));
+            this->baseVocabulary.insert(std::string(1, i));
+
+            if (i == 255) {
+                break;
+            }
+        }
     }
 
     template <typename T>
