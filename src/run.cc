@@ -55,11 +55,11 @@ int main(int argc, char **argv)
         std::cout << "\r[Files completed: " << filesCompleted << "], Time(ms):"
                   << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << ", Vocabulary Size: " << tokenizer.getVocabularySize() << " |";
         std::cout.flush();
-        if (filesCompleted % 100 == 0)
-        {
-            break;
+        // if (filesCompleted % 100 == 0)
+        // {
+            // break;
             // tokenizer.pruneWordFrequency();
-        }
+        // }
         // break;
     }
     std::cout << std::endl;
