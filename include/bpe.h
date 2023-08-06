@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <unordered_map>
+// #include <map>
 #include <unordered_set>
 #include <string>
 #include <vector>
@@ -38,6 +39,8 @@ namespace dokusha
     private:
         std::unordered_map<std::string, std::pair<std::vector<T>, unsigned>> wordWiseTokenListWithFrequency;
         std::unordered_map<std::pair<T, T>, T, PairHash, PairEqual> mergeRules;
+        // std::map<std::pair<T, T>, unsigned> pairFrequency;
+
         std::unordered_map<std::pair<T, T>, unsigned, PairHash, PairEqual> pairFrequency;
         unsigned short vocabularySize;
         std::unordered_map<T, unsigned short> vocabulary;

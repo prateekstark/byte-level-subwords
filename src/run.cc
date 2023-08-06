@@ -57,14 +57,16 @@ int main(int argc, char **argv)
         std::cout.flush();
         // if (filesCompleted % 100 == 0)
         // {
-            // break;
-            // tokenizer.pruneWordFrequency();
+        // break;
+        // tokenizer.pruneWordList();
         // }
         // break;
     }
+    // return 0;
     std::cout << std::endl;
     tokenizer.printVocabulary(false);
     tokenizer.pruneWordList();
+    // return 0;
     // tokenizer.printWordWiseTokenList();
     // print(tokenizer.wordFrequency.size());
 

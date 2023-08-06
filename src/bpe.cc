@@ -8,12 +8,13 @@ namespace dokusha
         this->vocabularySize = 1;
         this->inverseVocabulary[0] = "_";
 
-        for (uint8_t i = 0; ; i++)
+        for (uint8_t i = 0;; i++)
         {
             this->addToVocabulary(std::string(1, i));
             this->baseVocabulary.insert(std::string(1, i));
 
-            if (i == 255) {
+            if (i == 255)
+            {
                 break;
             }
         }
@@ -48,26 +49,26 @@ namespace dokusha
             {
                 if (currentWord.size() > 15)
                 {
-                    currentWord += ci;
+                    currentWord = " ";
                     continue;
                 }
 
                 tokens.clear();
+                tokens.reserve(currentWord.size());
                 for (const auto &cj : currentWord)
                 {
-                    token = cj;
-                    tokens.push_back(token);
-                    this->addToVocabulary(token);
+                    tokens.emplace_back(1, cj);
+                    // For BBPE, we can comment this line, since we have a base vocabulary. Increases performance by 30-40%
+                    // this->addToVocabulary(token);
                 }
 
-                if (this->wordWiseTokenListWithFrequency.find(currentWord) != wordWiseTokenListWithFrequency.end())
+                auto &wordTokenListWithFrequency = this->wordWiseTokenListWithFrequency[currentWord];
+
+                if (wordTokenListWithFrequency.first.empty())
                 {
-                    this->wordWiseTokenListWithFrequency[currentWord].second++;
+                    wordTokenListWithFrequency.first = std::move(tokens);
                 }
-                else
-                {
-                    this->wordWiseTokenListWithFrequency[currentWord] = std::make_pair(tokens, 1);
-                }
+                wordTokenListWithFrequency.second++;
 
                 currentWord.clear();
             }
@@ -79,22 +80,12 @@ namespace dokusha
     void BPETokenizer<T>::computePairFrequency()
     {
         this->pairFrequency.clear();
-
         for (const auto &element : this->wordWiseTokenListWithFrequency)
         {
             for (int i = 0; i < element.second.first.size() - 1; i++)
             {
-                std::pair<T, T> pair =
-                    std::make_pair(element.second.first[i],
-                                   element.second.first[i + 1]);
-                if (this->pairFrequency.find(pair) != this->pairFrequency.end())
-                {
-                    this->pairFrequency[pair] += element.second.second;
-                }
-                else
-                {
-                    this->pairFrequency[pair] = element.second.second;
-                }
+                this->pairFrequency[std::make_pair(element.second.first[i],
+                                                   element.second.first[i + 1])] += element.second.second;
             }
         }
     }
@@ -208,71 +199,6 @@ namespace dokusha
     }
 
     template <typename T>
-    const void BPETokenizer<T>::printWordWiseTokenList()
-    {
-        for (const auto &element : this->wordWiseTokenListWithFrequency)
-        {
-            std::cout << element.first << ": (";
-            for (const auto &tokens : element.second.first)
-            {
-                std::cout << tokens << " ";
-            }
-            std::cout << "\b) " << std::endl;
-        }
-    }
-
-    template <typename T>
-    const void BPETokenizer<T>::printVocabulary(const bool &detailed)
-    {
-        std::cout << "Vocabulary" << std::endl;
-
-        if (!detailed)
-        {
-            std::vector<T> keyVector;
-            for (const auto &element : this->vocabulary)
-            {
-                keyVector.push_back(element.first);
-            }
-            sort(keyVector.begin(), keyVector.end());
-
-            for (const auto &element : keyVector)
-            {
-                std::cout << element << " ";
-            }
-            std::cout << std::endl;
-        }
-        else
-        {
-            std::cout << "Vocabulary" << std::endl;
-            for (const auto &element : this->vocabulary)
-            {
-                std::cout << element.first << " " << element.second << std::endl;
-            }
-        }
-    }
-
-    template <typename T>
-    const void BPETokenizer<T>::printPairFrequency()
-    {
-        for (const auto &element : this->pairFrequency)
-        {
-            std::cout << "(" << element.first.first << ", " << element.first.second
-                      << ")"
-                      << ": " << element.second << std::endl;
-        }
-    }
-
-    template <typename T>
-    const void BPETokenizer<T>::printMergeRules()
-    {
-        for (const auto &element : this->mergeRules)
-        {
-            std::cout << "(" << element.first.first << ", " << element.first.second
-                      << "): " << element.second << std::endl;
-        }
-    }
-
-    template <typename T>
     void BPETokenizer<T>::runLearningIteration()
     {
         std::pair<std::string, std::string> bestPair;
@@ -301,16 +227,6 @@ namespace dokusha
         }
         size_t endNumWords = this->wordWiseTokenListWithFrequency.size();
         print("Pruned word frequency from " + std::to_string(startNumWords) + " to " + std::to_string(endNumWords));
-    }
-
-    template <typename T>
-    const void BPETokenizer<T>::printTokenizedText(const std::vector<int> &tokenizedText)
-    {
-        for (const auto &index : tokenizedText)
-        {
-            std::cout << index << " ";
-        }
-        std::cout << std::endl;
     }
 
     template <typename T>
@@ -403,6 +319,82 @@ namespace dokusha
         }
 
         return result;
+    }
+    // #######################################Visualization functions
+
+    template <typename T>
+    const void BPETokenizer<T>::printTokenizedText(const std::vector<int> &tokenizedText)
+    {
+        for (const auto &index : tokenizedText)
+        {
+            std::cout << index << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    template <typename T>
+    const void BPETokenizer<T>::printWordWiseTokenList()
+    {
+        for (const auto &element : this->wordWiseTokenListWithFrequency)
+        {
+            std::cout << element.first << ": (";
+            for (const auto &tokens : element.second.first)
+            {
+                std::cout << tokens << " ";
+            }
+            std::cout << "\b) " << std::endl;
+        }
+    }
+
+    template <typename T>
+    const void BPETokenizer<T>::printVocabulary(const bool &detailed)
+    {
+        std::cout << "Vocabulary" << std::endl;
+
+        if (!detailed)
+        {
+            std::vector<T> keyVector;
+            for (const auto &element : this->vocabulary)
+            {
+                keyVector.push_back(element.first);
+            }
+            sort(keyVector.begin(), keyVector.end());
+
+            for (const auto &element : keyVector)
+            {
+                std::cout << element << " ";
+            }
+            std::cout << std::endl;
+        }
+        else
+        {
+            std::cout << "Vocabulary" << std::endl;
+            for (const auto &element : this->vocabulary)
+            {
+                std::cout << element.first << " " << element.second << std::endl;
+            }
+        }
+    }
+
+    template <typename T>
+    const void BPETokenizer<T>::printPairFrequency()
+    {
+        for (const auto &element : this->pairFrequency)
+        {
+            std::cout << "(" << element.first.first << ", " << element.first.second
+                      << ")"
+                      << ": " << element.second << std::endl;
+        }
+    }
+
+    template <typename T>
+    const void BPETokenizer<T>::printMergeRules()
+    {
+        for (const auto &element : this->mergeRules)
+        {
+            std::cout << "(" << element.first.first << ", " << element.first.second
+                      << "): " << element.second << std::endl;
+        }
     }
 
 } // namespace dokusha
