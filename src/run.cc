@@ -62,13 +62,8 @@ int main(int argc, char **argv)
         // }
         // break;
     }
-    // return 0;
-    std::cout << std::endl;
-    tokenizer.printVocabulary(false);
+
     tokenizer.pruneWordList();
-    // return 0;
-    // tokenizer.printWordWiseTokenList();
-    // print(tokenizer.wordFrequency.size());
 
     while (tokenizer.getVocabularySize() < 1024)
     {
@@ -79,8 +74,12 @@ int main(int argc, char **argv)
                   << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.0 << " |";
         std::cout.flush();
     }
+    std::cout << std::endl;
+
     // tokenizer.pruneRedundantTokens();
     tokenizer.printVocabulary(false);
+    tokenizer.save("tokenizer_state.bin");
+    // tokenizer.printMergeRules();
 
     // Example test
     std::vector<unsigned short> tokenizedText = tokenizer.tokenize("I am Iron Man!, hehehehe");

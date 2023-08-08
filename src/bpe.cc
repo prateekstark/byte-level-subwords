@@ -54,6 +54,7 @@ namespace dokusha
                 }
 
                 tokens.clear();
+
                 tokens.reserve(currentWord.size());
                 for (const auto &cj : currentWord)
                 {
@@ -74,6 +75,45 @@ namespace dokusha
             }
             currentWord += ci;
         }
+
+        for (const auto &rule : this->mergeRules)
+        {
+            for (auto &element : wordWiseTokenListWithFrequency)
+            {
+                this->applyMergeRule(rule, element.second.first);
+            }
+        }
+    }
+
+    template <typename T>
+    void BPETokenizer<T>::applyMergeRule(const std::pair<std::pair<T, T>, T> &rule, std::vector<T> &rawTokenList)
+    {
+        if (rawTokenList.size() == 1)
+        {
+            return;
+        }
+
+        T token1 = rule.first.first;
+        T token2 = rule.first.second;
+        T mergedToken = rule.second;
+
+        for (std::vector<std::string>::iterator it = rawTokenList.begin();
+             it < rawTokenList.end() - 1;)
+        {
+            if (it->compare(token1) == 0 && (it + 1)->compare(token2) == 0)
+            {
+                *it = mergedToken;
+                it++;
+                if (it != rawTokenList.end())
+                {
+                    it = rawTokenList.erase(it);
+                }
+            }
+            else
+            {
+                it++;
+            }
+        }
     }
 
     template <typename T>
@@ -91,7 +131,7 @@ namespace dokusha
     }
 
     template <typename T>
-    const size_t BPETokenizer<T>::getVocabularySize()
+    const unsigned short BPETokenizer<T>::getVocabularySize() const
     {
         return this->vocabulary.size();
     }
@@ -132,6 +172,16 @@ namespace dokusha
     }
 
     template <typename T>
+    void inline BPETokenizer<T>::addToVocabulary(const T &token, unsigned short tokenIndex)
+    {
+        if (this->vocabulary.find(token) == this->vocabulary.end())
+        {
+            this->vocabulary[token] = tokenIndex;
+            this->inverseVocabulary[tokenIndex] = token;
+        }
+    }
+
+    template <typename T>
     void BPETokenizer<T>::pruneRedundantTokens()
     {
         std::unordered_set<T> tokensToBeRemoved;
@@ -155,7 +205,7 @@ namespace dokusha
             }
         }
 
-        auto startVocabCount = this->vocabularySize;
+        auto startVocabCount = this->getVocabularySize();
 
         for (const auto &token : tokensToBeRemoved)
         {
@@ -163,7 +213,7 @@ namespace dokusha
             this->vocabulary.erase(token);
             this->vocabularySize--;
         }
-        auto endVocabCount = this->vocabularySize;
+        auto endVocabCount = this->getVocabularySize();
 
         print("Pruned Redundant tokens from " + std::to_string(startVocabCount) + " to " + std::to_string(endVocabCount));
     }
@@ -260,32 +310,7 @@ namespace dokusha
         {
             for (auto &element : tokenList)
             {
-                if (element.size() == 1)
-                {
-                    continue;
-                }
-
-                T token1 = rule.first.first;
-                T token2 = rule.first.second;
-                T mergedToken = rule.second;
-
-                for (std::vector<std::string>::iterator it = element.begin();
-                     it < element.end() - 1;)
-                {
-                    if (it->compare(token1) == 0 && (it + 1)->compare(token2) == 0)
-                    {
-                        *it = mergedToken;
-                        it++;
-                        if (it != element.end())
-                        {
-                            it = element.erase(it);
-                        }
-                    }
-                    else
-                    {
-                        it++;
-                    }
-                }
+                this->applyMergeRule(rule, element);
             }
         }
 
@@ -320,10 +345,97 @@ namespace dokusha
 
         return result;
     }
-    // #######################################Visualization functions
 
     template <typename T>
-    const void BPETokenizer<T>::printTokenizedText(const std::vector<int> &tokenizedText)
+    void BPETokenizer<T>::save(const std::string filepath) const
+    {
+        std::ofstream outFile(filepath, std::ios::binary);
+        outFile.write(reinterpret_cast<const char *>(&this->vocabularySize), sizeof(this->vocabularySize));
+
+        unsigned short stringLength;
+        for (auto &token : this->vocabulary)
+        {
+            stringLength = token.first.size();
+            outFile.write(reinterpret_cast<const char *>(&stringLength), sizeof(stringLength));
+            outFile.write(token.first.c_str(), stringLength);
+            outFile.write(reinterpret_cast<const char *>(&token.second), sizeof(token.second));
+        }
+
+        unsigned short mergeRuleSize = this->mergeRules.size();
+        outFile.write(reinterpret_cast<const char *>(&mergeRuleSize), sizeof(mergeRuleSize));
+
+        unsigned short token1Length;
+        unsigned short token2Length;
+        unsigned short combinedTokenLength;
+
+        for (auto &rule : this->mergeRules)
+        {
+            token1Length = static_cast<unsigned short>(rule.first.first.size());
+            token2Length = static_cast<unsigned short>(rule.first.second.size());
+            combinedTokenLength = static_cast<unsigned short>(rule.second.size());
+            outFile.write(reinterpret_cast<const char *>(&token1Length), sizeof(token1Length));
+            outFile.write(rule.first.first.c_str(), token1Length);
+            outFile.write(reinterpret_cast<const char *>(&token2Length), sizeof(token2Length));
+            outFile.write(rule.first.second.c_str(), token2Length);
+            outFile.write(reinterpret_cast<const char *>(&combinedTokenLength), sizeof(combinedTokenLength));
+            outFile.write(rule.second.c_str(), combinedTokenLength);
+        }
+
+        outFile.close();
+    }
+
+    template <typename T>
+    void BPETokenizer<T>::load(const std::string filepath)
+    {
+        std::ifstream inFile(filepath, std::ios::binary);
+        inFile.read(reinterpret_cast<char *>(&this->vocabularySize), sizeof(this->vocabularySize));
+
+        unsigned short stringLength;
+        unsigned short tokenID;
+        std::string tempToken;
+
+        for (int i = 0; i < this->vocabularySize - 1; i++)
+        {
+            inFile.read(reinterpret_cast<char *>(&stringLength), sizeof(stringLength));
+            tempToken.resize(stringLength);
+            inFile.read(&tempToken[0], stringLength);
+
+            inFile.read(reinterpret_cast<char *>(&tokenID), sizeof(tokenID));
+            this->addToVocabulary(tempToken, tokenID);
+        }
+
+        unsigned short mergeRuleSize = this->mergeRules.size();
+
+        inFile.read(reinterpret_cast<char *>(&mergeRuleSize), sizeof(mergeRuleSize));
+
+        std::string token1;
+        unsigned short token1Length;
+        std::string token2;
+        unsigned short token2Length;
+        std::string combinedToken;
+        unsigned short combinedTokenLength;
+        for (int i = 0; i < mergeRuleSize; i++)
+        {
+            inFile.read(reinterpret_cast<char *>(&token1Length), sizeof(token1Length));
+            token1.resize(token1Length);
+            inFile.read(&token1[0], token1Length);
+
+            inFile.read(reinterpret_cast<char *>(&token2Length), sizeof(token2Length));
+            token2.resize(token2Length);
+            inFile.read(&token2[0], token2Length);
+
+            inFile.read(reinterpret_cast<char *>(&combinedTokenLength), sizeof(combinedTokenLength));
+            combinedToken.resize(combinedTokenLength);
+            inFile.read(&combinedToken[0], combinedTokenLength);
+            this->addToMergeRule(std::make_pair(token1, token2), combinedToken);
+        }
+
+        inFile.close();
+    }
+
+    // Visualization functions
+    template <typename T>
+    void BPETokenizer<T>::printTokenizedText(const std::vector<int> &tokenizedText) const
     {
         for (const auto &index : tokenizedText)
         {
@@ -333,7 +445,7 @@ namespace dokusha
     }
 
     template <typename T>
-    const void BPETokenizer<T>::printWordWiseTokenList()
+    void BPETokenizer<T>::printWordWiseTokenList() const
     {
         for (const auto &element : this->wordWiseTokenListWithFrequency)
         {
@@ -347,7 +459,7 @@ namespace dokusha
     }
 
     template <typename T>
-    const void BPETokenizer<T>::printVocabulary(const bool &detailed)
+    void BPETokenizer<T>::printVocabulary(const bool &detailed) const
     {
         std::cout << "Vocabulary" << std::endl;
 
@@ -377,7 +489,7 @@ namespace dokusha
     }
 
     template <typename T>
-    const void BPETokenizer<T>::printPairFrequency()
+    void BPETokenizer<T>::printPairFrequency() const
     {
         for (const auto &element : this->pairFrequency)
         {
@@ -388,13 +500,43 @@ namespace dokusha
     }
 
     template <typename T>
-    const void BPETokenizer<T>::printMergeRules()
+    void BPETokenizer<T>::printMergeRules() const
     {
         for (const auto &element : this->mergeRules)
         {
             std::cout << "(" << element.first.first << ", " << element.first.second
                       << "): " << element.second << std::endl;
         }
+    }
+
+    // Testing functions
+    template <typename T>
+    bool BPETokenizer<T>::operator==(const BPETokenizer<T> &other) const
+    {
+        if (this->vocabularySize != other.vocabularySize || this->vocabulary.size() != other.vocabulary.size() || this->mergeRules.size() != other.mergeRules.size())
+        {
+            return false;
+        }
+
+        for (auto &element : this->vocabulary)
+        {
+            auto otherElementIter = other.vocabulary.find(element.first);
+            if (otherElementIter == other.vocabulary.end() || otherElementIter->second != element.second)
+            {
+                return false;
+            }
+        }
+
+        for (auto &element : this->mergeRules)
+        {
+            auto otherElementIter = other.mergeRules.find(element.first);
+            if (otherElementIter == other.mergeRules.end() || otherElementIter->second != element.second)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
 } // namespace dokusha
